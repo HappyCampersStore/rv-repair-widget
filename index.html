@@ -14,31 +14,45 @@
       padding: 10px;
       background: #f9f9f9;
       text-align: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
     }
-    #locationInput {
-      width: 60%;
+    #controls input,
+    #controls select,
+    #controls button,
+    #controls label {
+      font-size: 16px;
       padding: 8px;
-      font-size: 16px;
-    }
-    #searchBtn {
-      padding: 8px 16px;
-      font-size: 16px;
-      background: #007bff;
-      color: #fff;
-      border: none;
-      cursor: pointer;
     }
     #map {
-      height: calc(100% - 60px);
+      height: calc(100% - 80px);
       width: 100%;
     }
   </style>
 </head>
 <body>
   <div id="controls">
-    <input type="text" id="locationInput" placeholder="Enter a city or zip code" />
+    <input type="text" id="locationInput" placeholder="Enter city or zip" />
+    <select id="searchRadius">
+      <option value="10000">10 miles</option>
+      <option value="25000">25 miles</option>
+      <option value="50000" selected>50 miles</option>
+    </select>
+    <select id="minRating">
+      <option value="0">All Ratings</option>
+      <option value="3">3+ Stars</option>
+      <option value="4">4+ Stars</option>
+      <option value="4.5">4.5+ Stars</option>
+    </select>
+    <label>
+      <input type="checkbox" id="openNow"> Open Now
+    </label>
     <button id="searchBtn">Find RV Repair Shops</button>
   </div>
+
   <div id="map"></div>
 
   <script>
@@ -62,15 +76,13 @@
             map.setZoom(10);
             searchRVShops(pos);
           },
-          () => {
-            console.warn("Geolocation denied or failed.");
-          }
+          () => console.warn("Geolocation failed.")
         );
       }
 
       document.getElementById("searchBtn").addEventListener("click", () => {
-        const location = document.getElementById("locationInput").value;
-        if (location) geocodeLocation(location);
+        const address = document.getElementById("locationInput").value;
+        if (address) geocodeLocation(address);
       });
     }
 
@@ -90,22 +102,31 @@
 
     function searchRVShops(location) {
       clearMarkers();
-      const service = new google.maps.places.PlacesService(map);
+
+      const radius = parseInt(document.getElementById("searchRadius").value);
+      const minRating = parseFloat(document.getElementById("minRating").value);
+      const openNow = document.getElementById("openNow").checked;
+
       const request = {
         location,
-        radius: 50000,
-        keyword: "RV repair shop"
+        radius,
+        keyword: "RV repair shop",
+        openNow
       };
+
+      const service = new google.maps.places.PlacesService(map);
       service.nearbySearch(request, (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK) {
-          results.forEach(place => {
-            const marker = new google.maps.Marker({
-              map,
-              position: place.geometry.location,
-              title: place.name
+          results
+            .filter(place => !place.rating || place.rating >= minRating)
+            .forEach(place => {
+              const marker = new google.maps.Marker({
+                map,
+                position: place.geometry.location,
+                title: `${place.name} (${place.rating || "N/A"}⭐)`
+              });
+              markers.push(marker);
             });
-            markers.push(marker);
-          });
         }
       });
     }
@@ -121,6 +142,3 @@
   </script>
 </body>
 </html>
-
-
-
