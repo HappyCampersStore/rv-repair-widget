@@ -1,137 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Find RV Repair Shops Near You</title>
+  <title>RV Repair Shop Finder</title>
   <style>
     html, body {
-      height: 100%;
       margin: 0;
       padding: 0;
-      font-family: sans-serif;
+      height: 100%;
+      font-family: Arial, sans-serif;
     }
-    #map {
-      height: 70%;
-      width: 100%;
-    }
-    #search-bar {
-      padding: 1rem;
+    #controls {
+      padding: 10px;
+      background: #f9f9f9;
       text-align: center;
-      background: #f8f8f8;
     }
     #locationInput {
-      padding: 0.5rem;
-      width: 250px;
-      font-size: 1rem;
+      width: 60%;
+      padding: 8px;
+      font-size: 16px;
     }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
+    #searchBtn {
+      padding: 8px 16px;
+      font-size: 16px;
+      background: #007bff;
+      color: #fff;
+      border: none;
       cursor: pointer;
-      margin-left: 0.5rem;
+    }
+    #map {
+      height: calc(100% - 60px);
+      width: 100%;
     }
   </style>
 </head>
 <body>
-  <div id="search-bar">
-    <input id="locationInput" type="text" placeholder="Enter city or ZIP code"/>
-    <button onclick="manualSearch()">Search</button>
+  <div id="controls">
+    <input type="text" id="locationInput" placeholder="Enter a city or zip code" />
+    <button id="searchBtn">Find RV Repair Shops</button>
   </div>
   <div id="map"></div>
 
   <script>
-    let map;
-    let markers = [];
-    let geocoder;
-    let placesService;
+    let map, markers = [];
 
     function initMap() {
-      geocoder = new google.maps.Geocoder();
-
-      const defaultLocation = { lat: 39.8283, lng: -98.5795 }; // Geographic center of U.S.
+      const fallbackLocation = { lat: 39.8283, lng: -98.5795 }; // US center
       map = new google.maps.Map(document.getElementById("map"), {
-        center: defaultLocation,
-        zoom: 5,
+        center: fallbackLocation,
+        zoom: 5
       });
-
-      placesService = new google.maps.places.PlacesService(map);
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          position => {
-            const userLocation = {
+          (position) => {
+            const pos = {
               lat: position.coords.latitude,
-              lng: position.coords.longitude,
+              lng: position.coords.longitude
             };
-            map.setCenter(userLocation);
-            map.setZoom(12);
-            addMarker(userLocation, "Your Location");
-            searchNearby(userLocation);
+            map.setCenter(pos);
+            map.setZoom(10);
+            searchRVShops(pos);
           },
           () => {
-            console.log("Geolocation failed or denied. Showing default map.");
+            console.warn("Geolocation denied or failed.");
           }
         );
-      } else {
-        console.log("Geolocation not supported. Showing default map.");
       }
+
+      document.getElementById("searchBtn").addEventListener("click", () => {
+        const location = document.getElementById("locationInput").value;
+        if (location) geocodeLocation(location);
+      });
     }
 
-    function addMarker(position, title) {
-      const marker = new google.maps.Marker({
-        map,
-        position,
-        title
+    function geocodeLocation(address) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address }, (results, status) => {
+        if (status === "OK") {
+          const loc = results[0].geometry.location;
+          map.setCenter(loc);
+          map.setZoom(10);
+          searchRVShops(loc);
+        } else {
+          alert("Location not found: " + status);
+        }
       });
-      markers.push(marker);
+    }
+
+    function searchRVShops(location) {
+      clearMarkers();
+      const service = new google.maps.places.PlacesService(map);
+      const request = {
+        location,
+        radius: 50000,
+        keyword: "RV repair shop"
+      };
+      service.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK) {
+          results.forEach(place => {
+            const marker = new google.maps.Marker({
+              map,
+              position: place.geometry.location,
+              title: place.name
+            });
+            markers.push(marker);
+          });
+        }
+      });
     }
 
     function clearMarkers() {
       markers.forEach(marker => marker.setMap(null));
       markers = [];
     }
-
-    function searchNearby(location) {
-      clearMarkers();
-      addMarker(location, "Search Center");
-
-      const request = {
-        location,
-        radius: 15000,
-        keyword: 'rv repair shop'
-      };
-
-      placesService.nearbySearch(request, (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK) {
-          results.forEach(place => {
-            addMarker(place.geometry.location, place.name);
-          });
-        }
-      });
-    }
-
-    function manualSearch() {
-      const address = document.getElementById("locationInput").value;
-      if (!address) return;
-
-      geocoder.geocode({ address }, (results, status) => {
-        if (status === "OK") {
-          const location = results[0].geometry.location;
-          map.setCenter(location);
-          map.setZoom(12);
-          searchNearby(location);
-        } else {
-          alert("Location not found. Try another ZIP or city.");
-        }
-      });
-    }
   </script>
 
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8xvdvqa2GhVU59cXZjHiYP63ogaf4gc8&libraries=places&callback=initMap"
-    async defer>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8xvdvqa2GhVU59cXZjHiYP63ogaf4gc8&libraries=places&callback=initMap">
   </script>
 </body>
 </html>
+
 
