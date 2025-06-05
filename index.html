@@ -2,27 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Find RV Repair Shops Near You</title>
   <style>
-    html, body, #map {
+    html, body {
       height: 100%;
       margin: 0;
       padding: 0;
+      font-family: sans-serif;
     }
     #map {
-      min-height: 400px;
+      height: 70%;
       width: 100%;
+    }
+    #search-bar {
+      padding: 1rem;
+      text-align: center;
+      background: #f8f8f8;
+    }
+    #locationInput {
+      padding: 0.5rem;
+      width: 250px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
     }
   </style>
 </head>
 <body>
+  <div id="search-bar">
+    <input id="locationInput" type="text" placeholder="Enter city or ZIP code"/>
+    <button onclick="manualSearch()">Search</button>
+  </div>
   <div id="map"></div>
 
   <script>
     let map;
+    let markers = [];
+    let geocoder;
+    let placesService;
 
     function initMap() {
+      geocoder = new google.maps.Geocoder();
+
+      const defaultLocation = { lat: 39.8283, lng: -98.5795 }; // Geographic center of U.S.
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: defaultLocation,
+        zoom: 5,
+      });
+
+      placesService = new google.maps.places.PlacesService(map);
+
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           position => {
@@ -30,51 +64,74 @@
               lat: position.coords.latitude,
               lng: position.coords.longitude,
             };
-
-            map = new google.maps.Map(document.getElementById("map"), {
-              center: userLocation,
-              zoom: 12,
-            });
-
-            new google.maps.Marker({
-              position: userLocation,
-              map,
-              title: "Your Location",
-              icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-            });
-
-            const request = {
-              location: userLocation,
-              radius: '15000',
-              keyword: 'rv repair shop'
-            };
-
-            const service = new google.maps.places.PlacesService(map);
-            service.nearbySearch(request, (results, status) => {
-              if (status === google.maps.places.PlacesServiceStatus.OK) {
-                results.forEach(place => {
-                  new google.maps.Marker({
-                    map,
-                    position: place.geometry.location,
-                    title: place.name
-                  });
-                });
-              }
-            });
+            map.setCenter(userLocation);
+            map.setZoom(12);
+            addMarker(userLocation, "Your Location");
+            searchNearby(userLocation);
           },
           () => {
-            alert("Geolocation failed or was denied.");
+            console.log("Geolocation failed or denied. Showing default map.");
           }
         );
       } else {
-        alert("Geolocation is not supported by this browser.");
+        console.log("Geolocation not supported. Showing default map.");
       }
     }
+
+    function addMarker(position, title) {
+      const marker = new google.maps.Marker({
+        map,
+        position,
+        title
+      });
+      markers.push(marker);
+    }
+
+    function clearMarkers() {
+      markers.forEach(marker => marker.setMap(null));
+      markers = [];
+    }
+
+    function searchNearby(location) {
+      clearMarkers();
+      addMarker(location, "Search Center");
+
+      const request = {
+        location,
+        radius: 15000,
+        keyword: 'rv repair shop'
+      };
+
+      placesService.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK) {
+          results.forEach(place => {
+            addMarker(place.geometry.location, place.name);
+          });
+        }
+      });
+    }
+
+    function manualSearch() {
+      const address = document.getElementById("locationInput").value;
+      if (!address) return;
+
+      geocoder.geocode({ address }, (results, status) => {
+        if (status === "OK") {
+          const location = results[0].geometry.location;
+          map.setCenter(location);
+          map.setZoom(12);
+          searchNearby(location);
+        } else {
+          alert("Location not found. Try another ZIP or city.");
+        }
+      });
+    }
   </script>
+
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8xvdvqa2GhVU59cXZjHiYP63ogaf4gc8&libraries=places&callback=initMap"
-    async
-    defer
-  ></script>
+    async defer>
+  </script>
 </body>
 </html>
+
